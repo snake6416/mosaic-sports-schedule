@@ -1,0 +1,1857 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sports Bar TV Schedule</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1a1a2e;
+            color: #eee;
+            min-height: 100vh;
+        }
+
+        /* Header */
+        .header {
+            background: #16213e;
+            padding: 15px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 15px;
+            border-bottom: 1px solid #0f3460;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header h1 {
+            font-size: 1.3rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .date-nav {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .date-nav button {
+            background: #0f3460;
+            border: none;
+            color: #fff;
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1rem;
+        }
+
+        .date-nav button:hover {
+            background: #1a4a7a;
+        }
+
+        .date-nav span {
+            font-size: 1rem;
+            min-width: 180px;
+            text-align: center;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .header-actions button {
+            padding: 8px 16px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-size: 0.85rem;
+        }
+
+        .btn-refresh {
+            background: #0f3460;
+            color: #fff;
+        }
+
+        .btn-print {
+            background: #4ade80;
+            color: #000;
+        }
+
+        /* Legend */
+        .legend {
+            background: #16213e;
+            padding: 10px 20px;
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            border-bottom: 1px solid #0f3460;
+            font-size: 0.75rem;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .legend-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 3px;
+        }
+
+        /* Sport Colors */
+        .sport-nfl { background: #013369; } /* NFL Blue */
+        .sport-cfb { background: #dc2626; } /* College Football Red */
+        .sport-nba { background: #f97316; } /* NBA Orange */
+        .sport-ncaam { background: #16a34a; } /* College Basketball Green */
+        .sport-mlb { background: #1d4ed8; } /* MLB Blue */
+        .sport-ncaab { background: #eab308; } /* College Baseball Yellow */
+        .sport-pga { background: #15803d; } /* Golf Green */
+        .sport-custom { background: #6b7280; } /* Custom Gray */
+
+        /* Calendar Grid */
+        .calendar-container {
+            display: flex;
+            overflow-x: auto;
+        }
+
+        .time-column {
+            flex-shrink: 0;
+            width: 60px;
+            background: #16213e;
+            border-right: 1px solid #0f3460;
+        }
+
+        .time-header {
+            height: 50px;
+            border-bottom: 1px solid #0f3460;
+        }
+
+        .time-slot {
+            height: 60px;
+            padding: 5px;
+            font-size: 0.7rem;
+            color: #888;
+            border-bottom: 1px solid #0f3460;
+            display: flex;
+            align-items: flex-start;
+        }
+
+        .days-container {
+            display: flex;
+            flex: 1;
+        }
+
+        .day-column {
+            flex: 1;
+            min-width: 160px;
+            border-right: 1px solid #0f3460;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .day-header {
+            height: 50px;
+            background: #16213e;
+            border-bottom: 1px solid #0f3460;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .day-header .day-name {
+            font-size: 0.75rem;
+            color: #888;
+        }
+
+        .day-header .day-date {
+            font-size: 1rem;
+            font-weight: 600;
+        }
+
+        .day-header.today {
+            background: #0f3460;
+        }
+
+        .day-header.today .day-date {
+            color: #4ade80;
+        }
+
+        .day-slots {
+            position: relative;
+            flex: 1;
+        }
+
+        /* Time Slot Cell */
+        .slot-cell {
+            height: 60px;
+            border-bottom: 1px solid #0f3460;
+            background: #1a1a2e;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .slot-cell:hover {
+            background: #1e1e3a;
+        }
+
+        .slot-cell:nth-child(even) {
+            background: #1c1c32;
+        }
+
+        .slot-cell:nth-child(even):hover {
+            background: #22223a;
+        }
+
+        /* Game Blocks - positioned absolutely within day-slots */
+        .game-block {
+            position: absolute;
+            border-radius: 4px;
+            padding: 4px 6px;
+            font-size: 0.7rem;
+            overflow: hidden;
+            cursor: pointer;
+            z-index: 5;
+            display: flex;
+            flex-direction: column;
+            border-left: 3px solid rgba(255,255,255,0.3);
+            box-sizing: border-box;
+        }
+
+        .game-block:hover {
+            z-index: 20;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+
+        .game-block .game-name {
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin-bottom: 2px;
+            line-height: 1.2;
+        }
+
+        .game-block .game-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.6rem;
+            opacity: 0.9;
+            flex-wrap: wrap;
+            gap: 2px;
+        }
+
+        .game-block .tv-count {
+            background: rgba(0,0,0,0.3);
+            padding: 2px 5px;
+            border-radius: 3px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .game-block.saints {
+            border-left-color: #d4af37;
+        }
+
+        .game-block.braves {
+            border-left-color: #ce1141;
+        }
+
+        /* Split games - positioned within column */
+        .game-block.split-2 {
+            width: calc(50% - 3px);
+        }
+
+        .game-block.split-2.pos-1 {
+            left: 2px;
+        }
+
+        .game-block.split-2.pos-2 {
+            left: calc(50% + 1px);
+        }
+
+        .game-block.split-3 {
+            width: calc(33.33% - 3px);
+        }
+
+        .game-block.split-3.pos-1 {
+            left: 2px;
+        }
+
+        .game-block.split-3.pos-2 {
+            left: calc(33.33% + 1px);
+        }
+
+        .game-block.split-3.pos-3 {
+            left: calc(66.66% + 1px);
+        }
+
+        /* Full width (no split) */
+        .game-block.full-width {
+            left: 2px;
+            right: 2px;
+            width: auto;
+        }
+
+        /* Smaller text for split games */
+        .game-block.split-2 .game-name,
+        .game-block.split-3 .game-name {
+            font-size: 0.6rem;
+        }
+
+        .game-block.split-2 .game-info,
+        .game-block.split-3 .game-info {
+            font-size: 0.5rem;
+        }
+
+        .game-block.split-3 .game-name {
+            font-size: 0.55rem;
+        }
+
+        .game-block.split-3 .game-info {
+            font-size: 0.45rem;
+        }
+
+        .empty-slot-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #444;
+            font-size: 0.7rem;
+            pointer-events: none;
+        }
+
+        /* Edit Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 200;
+        }
+
+        .modal-overlay.hidden {
+            display: none;
+        }
+
+        .modal {
+            background: #16213e;
+            border-radius: 12px;
+            padding: 20px;
+            max-width: 500px;
+            width: 95%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal h3 {
+            margin-bottom: 5px;
+            font-size: 1.1rem;
+        }
+
+        .modal .modal-subtitle {
+            color: #888;
+            font-size: 0.85rem;
+            margin-bottom: 15px;
+        }
+
+        .modal-section {
+            margin-bottom: 20px;
+        }
+
+        .modal-section h4 {
+            font-size: 0.85rem;
+            color: #4ade80;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        /* Current Games in Modal */
+        .current-games {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .current-game-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            background: #0f0f23;
+            border-radius: 6px;
+        }
+
+        .current-game-item .tier-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .current-game-item .game-details {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .current-game-item .game-details .name {
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .current-game-item .game-details .meta {
+            font-size: 0.75rem;
+            color: #888;
+        }
+
+        .current-game-item .tv-badge {
+            background: #333;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+        }
+
+        .current-game-item button {
+            background: #dc2626;
+            border: none;
+            color: #fff;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.75rem;
+        }
+
+        /* Suggestions */
+        .suggestions-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .suggestion-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 10px;
+            background: #0f0f23;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .suggestion-item:hover {
+            background: #1a1a3a;
+        }
+
+        .suggestion-item .tier-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .suggestion-item .suggestion-details {
+            flex: 1;
+            font-size: 0.8rem;
+        }
+
+        .suggestion-item .add-btn {
+            background: #4ade80;
+            color: #000;
+            border: none;
+            padding: 4px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.75rem;
+        }
+
+        /* Custom Event Input */
+        .custom-input-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        .custom-input-group input {
+            flex: 1;
+            padding: 10px;
+            border-radius: 6px;
+            border: 1px solid #333;
+            background: #0f0f23;
+            color: #fff;
+            font-size: 0.9rem;
+        }
+
+        .custom-input-group button {
+            background: #4ade80;
+            color: #000;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        /* Modal Footer */
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 1px solid #333;
+        }
+
+        .modal-footer button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+
+        .btn-close {
+            background: #333;
+            color: #fff;
+        }
+
+        /* Loading */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(26, 26, 46, 0.95);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 300;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .loading-overlay.hidden {
+            display: none;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #0f3460;
+            border-top-color: #4ade80;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Print Styles */
+        @media print {
+            * {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+
+            html, body {
+                background: #fff;
+                color: #000;
+                font-size: 9px;
+                margin: 0;
+                padding: 0;
+                height: auto;
+                overflow: visible;
+            }
+
+            .header {
+                background: #fff;
+                color: #000;
+                border: none;
+                position: static;
+                padding: 5px 0;
+                margin-bottom: 3px;
+            }
+
+            .header h1 {
+                font-size: 14px;
+                color: #000;
+            }
+
+            .date-nav {
+                color: #000;
+            }
+
+            .date-nav button {
+                display: none;
+            }
+
+            #weekRange {
+                font-size: 12px;
+                font-weight: bold;
+            }
+
+            .header-actions {
+                display: none;
+            }
+
+            .legend {
+                background: #fff;
+                border: none;
+                padding: 3px 0;
+                margin-bottom: 3px;
+                gap: 8px;
+            }
+
+            .legend-item {
+                font-size: 8px;
+            }
+
+            .legend-color {
+                width: 10px;
+                height: 10px;
+            }
+
+            .loading-overlay {
+                display: none !important;
+            }
+
+            .calendar-container {
+                overflow: visible;
+                border: 2px solid #333;
+                transform: scale(0.7);
+                transform-origin: top left;
+                width: 143%;
+            }
+
+            .time-column {
+                background: #f0f0f0 !important;
+                width: 70px;
+            }
+
+            .time-header {
+                background: #f0f0f0 !important;
+            }
+
+            .time-slot {
+                font-size: 16px;
+                font-weight: 700;
+                color: #000;
+                border-color: #999;
+                padding: 4px;
+            }
+
+            .days-container {
+                flex: 1;
+            }
+
+            .day-column {
+                min-width: 0 !important;
+                flex: 1;
+            }
+
+            .day-header {
+                background: #d0d0d0 !important;
+                color: #000;
+                border-color: #999;
+            }
+
+            .day-header .day-name {
+                color: #000;
+                font-size: 16px;
+                font-weight: 700;
+            }
+
+            .day-header .day-date {
+                color: #000;
+                font-size: 22px;
+                font-weight: bold;
+            }
+
+            .day-header.today {
+                background: #b0b0b0 !important;
+            }
+
+            .day-header.today .day-date {
+                color: #000;
+            }
+
+            .slot-cell {
+                background: #fff !important;
+                border-color: #bbb;
+            }
+
+            .slot-cell:nth-child(even) {
+                background: #f5f5f5 !important;
+            }
+
+            .game-block {
+                border-radius: 4px;
+                padding: 4px 6px;
+                border-left-width: 6px;
+            }
+
+            .game-block .game-name {
+                font-size: 18px;
+                font-weight: bold;
+                line-height: 1.1;
+                white-space: normal;
+                overflow: visible;
+            }
+
+            .game-block .game-info {
+                font-size: 14px;
+                line-height: 1.1;
+                font-weight: 600;
+                margin-top: 2px;
+            }
+
+            .game-block .tv-count {
+                padding: 2px 6px;
+                font-size: 16px;
+                font-weight: bold;
+            }
+            
+            /* Make split games readable */
+            .game-block.split-2 .game-name,
+            .game-block.split-3 .game-name {
+                font-size: 14px;
+            }
+            
+            .game-block.split-2 .game-info,
+            .game-block.split-3 .game-info {
+                font-size: 11px;
+            }
+            
+            .game-block.split-2 .tv-count,
+            .game-block.split-3 .tv-count {
+                font-size: 12px;
+                padding: 1px 4px;
+            }
+
+            /* Sport colors for print */
+            .sport-nfl {
+                background: #013369 !important;
+                color: #fff !important;
+            }
+
+            .sport-cfb {
+                background: #dc2626 !important;
+                color: #fff !important;
+            }
+
+            .sport-nba {
+                background: #f97316 !important;
+                color: #fff !important;
+            }
+
+            .sport-ncaam {
+                background: #16a34a !important;
+                color: #fff !important;
+            }
+
+            .sport-mlb {
+                background: #1d4ed8 !important;
+                color: #fff !important;
+            }
+
+            .sport-ncaab {
+                background: #ca8a04 !important;
+                color: #fff !important;
+            }
+
+            .sport-pga {
+                background: #15803d !important;
+                color: #fff !important;
+            }
+
+            .sport-custom {
+                background: #6b7280 !important;
+                color: #fff !important;
+            }
+
+            .modal-overlay {
+                display: none !important;
+            }
+
+            /* Page setup */
+            @page {
+                size: landscape;
+                margin: 0.25in;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .header {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .date-nav {
+                justify-content: center;
+            }
+
+            .day-column {
+                min-width: 130px;
+            }
+
+            .legend {
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="spinner"></div>
+        <div>Loading schedule...</div>
+    </div>
+
+    <div class="modal-overlay hidden" id="modalOverlay">
+        <div class="modal">
+            <h3 id="modalTitle">Edit Time Slot</h3>
+            <p class="modal-subtitle" id="modalSubtitle">Sunday, Jan 12 • 12:00 PM</p>
+
+            <div class="modal-section">
+                <h4>📺 Currently Showing (3 max)</h4>
+                <div class="current-games" id="currentGames">
+                    <!-- Filled by JS -->
+                </div>
+            </div>
+
+            <div class="modal-section">
+                <h4>➕ Add from Other Games</h4>
+                <div class="suggestions-list" id="suggestionsList">
+                    <!-- Filled by JS -->
+                </div>
+            </div>
+
+            <div class="modal-section">
+                <h4>✏️ Add Custom Event</h4>
+                <div class="custom-input-group">
+                    <input type="text" id="customEventInput" placeholder="e.g. UFC Fight Night, Local Event">
+                    <button onclick="addCustomEvent()">Add</button>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn-close" onclick="closeModal()">Done</button>
+            </div>
+        </div>
+    </div>
+
+    <header class="header">
+        <h1>📺 TV Schedule</h1>
+        <div class="date-nav">
+            <button onclick="changeWeek(-1)">← Prev</button>
+            <span id="weekRange">Jan 12 - Jan 18, 2026</span>
+            <button onclick="changeWeek(1)">Next →</button>
+        </div>
+        <div class="header-actions">
+            <button class="btn-refresh" onclick="fetchAllGames()">🔄 Refresh</button>
+            <button class="btn-print" onclick="window.print()">🖨️ Print</button>
+        </div>
+    </header>
+
+    <div class="legend">
+        <div class="legend-item">
+            <div class="legend-color sport-nfl"></div>
+            <span>NFL</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color sport-cfb"></div>
+            <span>CFB</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color sport-nba"></div>
+            <span>NBA</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color sport-ncaam"></div>
+            <span>CBB</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color sport-mlb"></div>
+            <span>MLB</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color sport-ncaab"></div>
+            <span>College Baseball</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color sport-pga"></div>
+            <span>Golf</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color sport-custom"></div>
+            <span>Custom</span>
+        </div>
+    </div>
+
+    <div class="calendar-container">
+        <div class="time-column">
+            <div class="time-header"></div>
+            <div id="timeSlots"></div>
+        </div>
+        <div class="days-container" id="daysContainer"></div>
+    </div>
+
+    <script>
+        // Configuration
+        const CORS_PROXY = 'https://corsproxy.io/?';
+        const ESPN_BASE = 'https://site.api.espn.com/apis/site/v2/sports';
+        const NUM_TVS = 8;
+        const MAX_GAMES_PER_SLOT = 3;
+
+        // Priority teams
+        const PRIORITY_TEAMS = {
+            sec: ['lsu', 'alabama', 'ole miss', 'mississippi', 'miss state', 'southern miss', 'rebels', 'tigers', 'crimson tide', 'bulldogs', 'golden eagles'],
+            nfl: ['saints', 'new orleans'],
+            mlb: ['braves', 'atlanta']
+        };
+
+        // Subscription services to exclude (doesn't apply to NFL or SEC games)
+        const EXCLUDED_BROADCASTS = [
+            'league pass', 'nba league pass', 'nba lp',
+            'mlb.tv', 'mlb tv',
+            'espn+', 'espn plus',
+            'peacock', 
+            'nfl+', 'nfl plus',
+            'paramount+', 'paramount plus'
+        ];
+
+        function isExcludedBroadcast(broadcast, league) {
+            // We have access to all NFL and SEC games regardless of broadcast
+            if (league === 'nfl' || league === 'cfb' || league === 'ncaam' || league === 'ncaab') {
+                return false;
+            }
+            if (!broadcast) return false;
+            const lower = broadcast.toLowerCase();
+            return EXCLUDED_BROADCASTS.some(exc => lower.includes(exc));
+        }
+        
+        const GOLF_MAJORS = ['masters', 'pga championship', 'u.s. open', 'us open', 'open championship', 'british open'];
+
+        // Time config
+        const START_HOUR = 11;
+        const END_HOUR = 22;
+        const SLOT_HEIGHT = 60; // pixels per hour slot
+        const TIMEZONE = 'America/Chicago'; // Central Time (Mississippi)
+
+        // Convert date to Central time hours
+        function getLocalHours(date) {
+            const options = { timeZone: TIMEZONE, hour: 'numeric', minute: 'numeric', hour12: false };
+            const timeStr = date.toLocaleTimeString('en-US', options);
+            const [hours, minutes] = timeStr.split(':').map(Number);
+            return hours + (minutes / 60);
+        }
+
+        // Format time in Central timezone
+        function formatTime(date) {
+            return date.toLocaleTimeString('en-US', { 
+                timeZone: TIMEZONE, 
+                hour: 'numeric', 
+                minute: '2-digit',
+                hour12: true 
+            });
+        }
+
+        let currentWeekStart = getStartOfWeek(new Date());
+        let allGames = []; // All fetched games
+        let schedule = {}; // Edited schedule: { 'YYYY-MM-DD-HH:mm': { games: [...], customEvents: [...] } }
+        let currentEditSlot = null;
+
+        // Utility functions
+        function getStartOfWeek(date) {
+            const d = new Date(date);
+            const day = d.getDay();
+            d.setDate(d.getDate() - day);
+            d.setHours(0, 0, 0, 0);
+            return d;
+        }
+
+        function formatDateRange(start) {
+            const end = new Date(start);
+            end.setDate(end.getDate() + 6);
+            const opts = { month: 'short', day: 'numeric' };
+            return `${start.toLocaleDateString('en-US', opts)} - ${end.toLocaleDateString('en-US', opts)}, ${end.getFullYear()}`;
+        }
+
+        function formatDateAPI(date) {
+            return date.toISOString().split('T')[0].replace(/-/g, '');
+        }
+
+        function getSlotKey(date, hour, minute) {
+            const d = date.toISOString().split('T')[0];
+            const h = String(hour).padStart(2, '0');
+            const m = String(minute).padStart(2, '0');
+            return `${d}-${h}:${m}`;
+        }
+
+        function parseSlotKey(key) {
+            const [datePart, timePart] = key.split('-').reduce((acc, part, idx, arr) => {
+                if (idx < 3) {
+                    acc[0] = acc[0] ? acc[0] + '-' + part : part;
+                } else {
+                    acc[1] = part;
+                }
+                return acc;
+            }, ['', '']);
+            return { date: datePart, time: key.slice(-5) };
+        }
+
+        function changeWeek(delta) {
+            currentWeekStart.setDate(currentWeekStart.getDate() + (delta * 7));
+            document.getElementById('weekRange').textContent = formatDateRange(currentWeekStart);
+            schedule = {}; // Reset edits for new week
+            renderCalendar();
+            fetchAllGames();
+        }
+
+        // Tier calculation
+        function getGameTier(game) {
+            const name = game.name.toLowerCase();
+            const league = game.league;
+
+            // Tier 1: TOP PRIORITY - Saints, SEC Football, Playoffs, March Madness
+            // These can split with each other but take all TVs over lower tiers
+            if (league === 'nfl' && PRIORITY_TEAMS.nfl.some(t => name.includes(t))) return 1;
+            if (league === 'cfb' && PRIORITY_TEAMS.sec.some(t => name.includes(t))) return 1;
+            if (game.isPlayoff && ['cfb', 'nfl', 'mlb', 'nba'].includes(league)) return 1;
+            if (game.isMarchMadness) return 1;
+
+            // Tier 2: Golf Majors
+            if (league === 'pga' && GOLF_MAJORS.some(m => name.includes(m))) return 2;
+
+            // Tier 3: Other NFL, Ranked CFB
+            if (league === 'nfl') return 3;
+            
+            if (league === 'cfb') {
+                if (game.isRanked) return 3;
+                return 7;
+            }
+
+            // Tier 4: SEC Basketball/Baseball, NBA, MLB, nationally televised CBB
+            if (league === 'ncaam') {
+                if (PRIORITY_TEAMS.sec.some(t => name.includes(t))) return 4;
+                if (game.isNationalTV) return 4;
+                if (game.isRanked) return 4.5;
+                return 7;
+            }
+
+            if (league === 'nba') return 4;
+
+            if (league === 'mlb') {
+                return PRIORITY_TEAMS.mlb.some(t => name.includes(t)) ? 4 : 4.5;
+            }
+
+            if (league === 'ncaab') {
+                if (PRIORITY_TEAMS.sec.some(t => name.includes(t))) return 4;
+                return 5;
+            }
+
+            return 7; // Low priority / other
+        }
+
+        function getSportClass(league) {
+            if (league === 'custom') return 'sport-custom';
+            if (league === 'nfl') return 'sport-nfl';
+            if (league === 'cfb') return 'sport-cfb';
+            if (league === 'nba') return 'sport-nba';
+            if (league === 'ncaam') return 'sport-ncaam';
+            if (league === 'mlb') return 'sport-mlb';
+            if (league === 'ncaab') return 'sport-ncaab';
+            if (league === 'pga') return 'sport-pga';
+            return 'sport-custom';
+        }
+
+        function getSportName(league) {
+            if (league === 'custom') return 'Custom Event';
+            if (league === 'nfl') return 'NFL';
+            if (league === 'cfb') return 'College Football';
+            if (league === 'nba') return 'NBA';
+            if (league === 'ncaam') return 'College Basketball';
+            if (league === 'mlb') return 'MLB';
+            if (league === 'ncaab') return 'College Baseball';
+            if (league === 'pga') return 'Golf';
+            return 'Other';
+        }
+
+        // Keep tier functions for priority logic
+        function getTierClass(tier) {
+            if (tier === 'custom') return 'sport-custom';
+            if (tier <= 1) return 'sport-nfl';
+            if (tier <= 2) return 'sport-pga';
+            if (tier <= 3.5) return 'sport-nfl';
+            if (tier <= 4.5) return 'sport-cfb';
+            if (tier <= 6) return 'sport-ncaam';
+            return 'sport-ncaam';
+        }
+
+        function getTierName(tier) {
+            if (tier === 'custom') return 'Custom Event';
+            if (tier <= 1) return 'Playoffs/March Madness';
+            if (tier <= 2) return 'Golf Major';
+            if (tier <= 3.5) return 'NFL';
+            if (tier <= 4.5) return 'SEC Football';
+            return 'SEC/NBA/MLB';
+        }
+
+        // Get games for a specific time slot
+        function getGamesForSlot(slotKey, date, hour, minute) {
+            const slotStart = new Date(date);
+            slotStart.setHours(hour, minute, 0, 0);
+            const slotEnd = new Date(slotStart);
+            slotEnd.setHours(slotEnd.getHours() + 1); // 1 hour slots
+            
+            // Get the date for comparison (year, month, day only)
+            const slotYear = date.getFullYear();
+            const slotMonth = date.getMonth();
+            const slotDay = date.getDate();
+
+            // Find games that overlap with this slot AND are on the same day
+            return allGames.filter(game => {
+                const gameStart = new Date(game.date);
+                const gameDuration = (game.duration || 3) * 60 * 60 * 1000;
+                const gameEnd = new Date(gameStart.getTime() + gameDuration);
+                
+                // Get game date in Central time
+                const gameLocalStr = gameStart.toLocaleString('en-US', { timeZone: TIMEZONE });
+                const gameLocal = new Date(gameLocalStr);
+                const gameYear = gameLocal.getFullYear();
+                const gameMonth = gameLocal.getMonth();
+                const gameDay = gameLocal.getDate();
+                
+                // Must be same day AND overlap with slot
+                const sameDay = gameYear === slotYear && gameMonth === slotMonth && gameDay === slotDay;
+                
+                return sameDay && gameStart < slotEnd && gameEnd > slotStart;
+            }).sort((a, b) => a.tier - b.tier);
+        }
+
+        // Get the scheduled games for a slot (top 3 or edited)
+        function getScheduledGames(slotKey, date, hour, minute) {
+            if (schedule[slotKey]) {
+                return schedule[slotKey];
+            }
+
+            // Auto-select top 3 by tier
+            const availableGames = getGamesForSlot(slotKey, date, hour, minute);
+            const topGames = availableGames.slice(0, MAX_GAMES_PER_SLOT);
+
+            // Assign TV counts
+            const tvAssignments = assignTVs(topGames);
+
+            // Only include games that have TVs assigned (filter out 0s)
+            const gamesWithTVs = topGames
+                .map((g, i) => ({ ...g, tvs: tvAssignments[i] }))
+                .filter(g => g.tvs > 0);
+
+            return {
+                games: gamesWithTVs,
+                customEvents: []
+            };
+        }
+
+        // Assign TVs to games (8 TVs total)
+        // Higher tier takes ALL 8 TVs - only same tier can split
+        function assignTVs(games) {
+            if (games.length === 0) return [];
+            if (games.length === 1) return [NUM_TVS];
+
+            // Find the highest (lowest number) tier
+            const highestTier = Math.min(...games.map(g => g.tier));
+            
+            // Only games in the exact highest tier get TVs
+            const topTierGames = games.filter(g => g.tier === highestTier);
+            
+            const assignments = new Array(games.length).fill(0);
+            
+            // Split all 8 TVs among top tier games only
+            if (topTierGames.length === 1) {
+                const idx = games.indexOf(topTierGames[0]);
+                assignments[idx] = NUM_TVS;
+            } else if (topTierGames.length === 2) {
+                topTierGames.forEach(g => {
+                    const idx = games.indexOf(g);
+                    assignments[idx] = 4;
+                });
+            } else if (topTierGames.length >= 3) {
+                const tvsPerGame = [3, 3, 2];
+                topTierGames.slice(0, 3).forEach((g, i) => {
+                    const idx = games.indexOf(g);
+                    assignments[idx] = tvsPerGame[i];
+                });
+            }
+
+            return assignments;
+        }
+
+        // Render time slots column
+        function renderTimeSlots() {
+            const container = document.getElementById('timeSlots');
+            container.innerHTML = '';
+
+            for (let hour = START_HOUR; hour <= END_HOUR; hour++) {
+                const slot = document.createElement('div');
+                slot.className = 'time-slot';
+                const displayHour = hour > 12 ? hour - 12 : (hour === 0 ? 12 : hour);
+                const ampm = hour >= 12 ? 'PM' : 'AM';
+                slot.textContent = `${displayHour} ${ampm}`;
+                container.appendChild(slot);
+            }
+        }
+
+        // Render calendar grid
+        function renderCalendar() {
+            const container = document.getElementById('daysContainer');
+            container.innerHTML = '';
+
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+            for (let i = 0; i < 7; i++) {
+                const date = new Date(currentWeekStart);
+                date.setDate(date.getDate() + i);
+                const isToday = date.getTime() === today.getTime();
+                const dateStr = date.toISOString().split('T')[0];
+
+                const dayCol = document.createElement('div');
+                dayCol.className = 'day-column';
+                dayCol.dataset.date = dateStr;
+                dayCol.dataset.dayIndex = i;
+
+                dayCol.innerHTML = `
+                    <div class="day-header${isToday ? ' today' : ''}">
+                        <span class="day-name">${dayNames[date.getDay()]}</span>
+                        <span class="day-date">${date.getMonth() + 1}/${date.getDate()}</span>
+                    </div>
+                    <div class="day-slots" id="day-slots-${i}"></div>
+                `;
+
+                container.appendChild(dayCol);
+
+                // Add slot cells for clicking
+                const slotsContainer = dayCol.querySelector('.day-slots');
+                for (let hour = START_HOUR; hour <= END_HOUR; hour++) {
+                    const slotKey = getSlotKey(date, hour, 0);
+                    const cell = document.createElement('div');
+                    cell.className = 'slot-cell';
+                    cell.dataset.slotKey = slotKey;
+                    cell.dataset.dayIndex = i;
+                    cell.dataset.hour = hour;
+                    cell.onclick = (e) => {
+                        // Don't open modal if clicking on a game block
+                        if (e.target.closest('.game-block')) return;
+                        openEditModal(slotKey, date, hour, 0);
+                    };
+                    slotsContainer.appendChild(cell);
+                }
+            }
+        }
+
+        // Render games as continuous blocks
+        function renderGames() {
+            // Clear existing game blocks
+            document.querySelectorAll('.game-block').forEach(el => el.remove());
+
+            // Process each day
+            for (let dayIndex = 0; dayIndex < 7; dayIndex++) {
+                const date = new Date(currentWeekStart);
+                date.setDate(date.getDate() + dayIndex);
+                const dateStr = date.toISOString().split('T')[0];
+
+                const slotsContainer = document.getElementById(`day-slots-${dayIndex}`);
+                if (!slotsContainer) continue;
+
+                // Collect all unique games for this day that have TVs assigned
+                const dayGames = new Map(); // gameId -> game data with start/end
+
+                for (let hour = START_HOUR; hour <= END_HOUR; hour++) {
+                    const slotKey = getSlotKey(date, hour, 0);
+                    const scheduled = getScheduledGames(slotKey, date, hour, 0);
+
+                    // Process scheduled games (already filtered to only those with TVs > 0)
+                    scheduled.games.forEach(game => {
+                        const gameKey = game.id;
+                        if (!dayGames.has(gameKey)) {
+                            const gameStart = new Date(game.date);
+                            const gameDuration = game.duration || 3;
+                            const gameEnd = new Date(gameStart.getTime() + gameDuration * 60 * 60 * 1000);
+
+                            // Get hours in Central time
+                            const startHourRaw = getLocalHours(gameStart);
+                            const endHourRaw = getLocalHours(gameEnd);
+                            
+                            // Clamp to display range (11am - 10pm Central)
+                            const displayStart = Math.max(startHourRaw, START_HOUR);
+                            const displayEnd = Math.min(endHourRaw, END_HOUR + 1);
+                            
+                            // Skip games entirely outside our display range
+                            if (displayEnd <= START_HOUR || displayStart >= END_HOUR + 1) {
+                                return;
+                            }
+
+                            dayGames.set(gameKey, {
+                                ...game,
+                                startHour: displayStart,
+                                endHour: displayEnd,
+                                gameStart,
+                                gameEnd
+                            });
+                        }
+                    });
+
+                    // Process custom events
+                    scheduled.customEvents.forEach(event => {
+                        const customKey = `custom-${event.id}`;
+                        if (!dayGames.has(customKey)) {
+                            dayGames.set(customKey, {
+                                ...event,
+                                isCustom: true,
+                                league: 'custom',
+                                startHour: hour,
+                                endHour: hour + 1
+                            });
+                        }
+                    });
+                }
+
+                // Convert to array and sort by start time, then by tier
+                const gamesArray = Array.from(dayGames.values())
+                    .sort((a, b) => a.startHour - b.startHour || a.tier - b.tier);
+
+                // Render each game
+                gamesArray.forEach(game => {
+                    // Only consider overlapping games that are in the SAME tier
+                    // (since different tiers don't share TVs)
+                    const overlapping = gamesArray.filter(other => 
+                        other.id !== game.id &&
+                        other.tier === game.tier && // Same tier only
+                        other.tvs > 0 && // Has TVs assigned
+                        other.startHour < game.endHour &&
+                        other.endHour > game.startHour
+                    );
+
+                    const totalOverlapping = overlapping.length + 1;
+                    
+                    // Determine position among overlapping games
+                    const overlappingWithSelf = [game, ...overlapping].sort((a, b) => {
+                        // Sort by start time, then by name for consistency
+                        if (a.startHour !== b.startHour) return a.startHour - b.startHour;
+                        return (a.name || '').localeCompare(b.name || '');
+                    });
+                    const position = overlappingWithSelf.indexOf(game) + 1;
+
+                    // Calculate position - ensure top is never negative
+                    const top = Math.max(0, (game.startHour - START_HOUR) * SLOT_HEIGHT);
+                    const height = Math.max((game.endHour - game.startHour) * SLOT_HEIGHT - 2, 30);
+
+                    const sportClass = game.isCustom ? 'sport-custom' : getSportClass(game.league);
+                    const isSaints = !game.isCustom && PRIORITY_TEAMS.nfl.some(t => (game.name || '').toLowerCase().includes(t));
+                    const isBraves = !game.isCustom && PRIORITY_TEAMS.mlb.some(t => (game.name || '').toLowerCase().includes(t));
+
+                    const block = document.createElement('div');
+                    block.className = `game-block ${sportClass}`;
+                    
+                    if (totalOverlapping > 1 && totalOverlapping <= 3) {
+                        block.classList.add(`split-${totalOverlapping}`);
+                        block.classList.add(`pos-${position}`);
+                    } else if (totalOverlapping > 3) {
+                        // More than 3 overlapping, just show first 3
+                        if (position <= 3) {
+                            block.classList.add('split-3');
+                            block.classList.add(`pos-${position}`);
+                        } else {
+                            return; // Don't render games beyond position 3
+                        }
+                    } else {
+                        block.classList.add('full-width');
+                    }
+                    
+                    if (isSaints) block.classList.add('saints');
+                    if (isBraves) block.classList.add('braves');
+
+                    block.style.top = `${top}px`;
+                    block.style.height = `${height}px`;
+
+                    const timeStr = game.gameStart ? formatTime(game.gameStart) : '';
+
+                    block.innerHTML = `
+                        <div class="game-name">${game.isCustom ? game.name : (game.shortName || game.name)}${isSaints ? ' ⚜️' : ''}${isBraves ? ' 🪓' : ''}</div>
+                        <div class="game-info">
+                            <span>${timeStr}${game.broadcast ? ' • ' + game.broadcast : ''}</span>
+                            ${game.tvs ? `<span class="tv-count">${game.tvs} TVs</span>` : ''}
+                        </div>
+                    `;
+
+                    block.onclick = (e) => {
+                        e.stopPropagation();
+                        const clickHour = Math.floor(game.startHour);
+                        const slotKey = getSlotKey(date, clickHour, 0);
+                        openEditModal(slotKey, date, clickHour, 0);
+                    };
+
+                    slotsContainer.appendChild(block);
+                });
+            }
+        }
+
+        // Modal functions
+        function openEditModal(slotKey, date, hour, minute) {
+            currentEditSlot = { slotKey, date: new Date(date), hour, minute };
+
+            const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+            const displayHour = hour > 12 ? hour - 12 : hour;
+            const ampm = hour >= 12 ? 'PM' : 'AM';
+
+            document.getElementById('modalTitle').textContent = 'Edit Time Slot';
+            document.getElementById('modalSubtitle').textContent =
+                `${dayNames[date.getDay()]}, ${date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} • ${displayHour}:00 ${ampm}`;
+
+            renderModalContent();
+            document.getElementById('modalOverlay').classList.remove('hidden');
+        }
+
+        function renderModalContent() {
+            const { slotKey, date, hour, minute } = currentEditSlot;
+            const scheduled = getScheduledGames(slotKey, date, hour, minute);
+
+            // Ensure schedule entry exists
+            if (!schedule[slotKey]) {
+                schedule[slotKey] = {
+                    games: scheduled.games,
+                    customEvents: scheduled.customEvents
+                };
+            }
+
+            const currentData = schedule[slotKey];
+
+            // Render current games
+            const currentContainer = document.getElementById('currentGames');
+            const allCurrent = [
+                ...currentData.games.map(g => ({ ...g, isCustom: false })),
+                ...currentData.customEvents.map(e => ({ ...e, isCustom: true, tier: 'custom' }))
+            ];
+
+            if (allCurrent.length === 0) {
+                currentContainer.innerHTML = '<div style="color: #666; padding: 10px;">No games scheduled</div>';
+            } else {
+                currentContainer.innerHTML = allCurrent.map((item, idx) => `
+                    <div class="current-game-item">
+                        <div class="tier-dot ${item.isCustom ? 'sport-custom' : getSportClass(item.league)}"></div>
+                        <div class="game-details">
+                            <div class="name">${item.name}</div>
+                            <div class="meta">${item.isCustom ? 'Custom Event' : getSportName(item.league)}${item.broadcast ? ' • ' + item.broadcast : ''}</div>
+                        </div>
+                        ${item.tvs ? `<div class="tv-badge">${item.tvs} TVs</div>` : ''}
+                        <button onclick="removeFromSlot(${idx}, ${item.isCustom})">Remove</button>
+                    </div>
+                `).join('');
+            }
+
+            // Render suggestions (games not currently scheduled)
+            const allGamesForSlot = getGamesForSlot(slotKey, date, hour, minute);
+            const currentIds = new Set(currentData.games.map(g => g.id));
+            const suggestions = allGamesForSlot.filter(g => !currentIds.has(g.id));
+
+            const suggestionsContainer = document.getElementById('suggestionsList');
+            if (suggestions.length === 0) {
+                suggestionsContainer.innerHTML = '<div style="color: #666; padding: 10px;">No other games at this time</div>';
+            } else {
+                suggestionsContainer.innerHTML = suggestions.map(game => `
+                    <div class="suggestion-item">
+                        <div class="tier-dot ${getSportClass(game.league)}"></div>
+                        <div class="suggestion-details">
+                            <strong>${game.shortName || game.name}</strong><br>
+                            <span style="color: #888;">${getSportName(game.league)}${game.broadcast ? ' • ' + game.broadcast : ''}</span>
+                        </div>
+                        <button class="add-btn" onclick="addGameToSlot('${game.id}')" ${allCurrent.length >= MAX_GAMES_PER_SLOT ? 'disabled style="opacity:0.5"' : ''}>Add</button>
+                    </div>
+                `).join('');
+            }
+
+            // Clear custom input
+            document.getElementById('customEventInput').value = '';
+        }
+
+        function removeFromSlot(index, isCustom) {
+            const { slotKey } = currentEditSlot;
+            if (!schedule[slotKey]) return;
+
+            if (isCustom) {
+                const customIndex = index - schedule[slotKey].games.length;
+                schedule[slotKey].customEvents.splice(customIndex, 1);
+            } else {
+                schedule[slotKey].games.splice(index, 1);
+            }
+
+            // Recalculate TV assignments
+            const tvAssignments = assignTVs(schedule[slotKey].games);
+            schedule[slotKey].games.forEach((g, i) => g.tvs = tvAssignments[i]);
+
+            renderModalContent();
+            renderGames();
+        }
+
+        function addGameToSlot(gameId) {
+            const { slotKey } = currentEditSlot;
+            if (!schedule[slotKey]) {
+                schedule[slotKey] = { games: [], customEvents: [] };
+            }
+
+            const totalItems = schedule[slotKey].games.length + schedule[slotKey].customEvents.length;
+            if (totalItems >= MAX_GAMES_PER_SLOT) return;
+
+            const game = allGames.find(g => g.id === gameId);
+            if (game && !schedule[slotKey].games.find(g => g.id === gameId)) {
+                schedule[slotKey].games.push({ ...game });
+                schedule[slotKey].games.sort((a, b) => a.tier - b.tier);
+
+                // Recalculate TV assignments
+                const tvAssignments = assignTVs(schedule[slotKey].games);
+                schedule[slotKey].games.forEach((g, i) => g.tvs = tvAssignments[i]);
+            }
+
+            renderModalContent();
+            renderGames();
+        }
+
+        function addCustomEvent() {
+            const input = document.getElementById('customEventInput');
+            const name = input.value.trim();
+            if (!name) return;
+
+            const { slotKey } = currentEditSlot;
+            if (!schedule[slotKey]) {
+                schedule[slotKey] = { games: [], customEvents: [] };
+            }
+
+            const totalItems = schedule[slotKey].games.length + schedule[slotKey].customEvents.length;
+            if (totalItems >= MAX_GAMES_PER_SLOT) {
+                alert('Maximum 3 items per time slot');
+                return;
+            }
+
+            schedule[slotKey].customEvents.push({
+                id: 'custom-' + Date.now(),
+                name: name,
+                tvs: Math.floor(NUM_TVS / (totalItems + 1))
+            });
+
+            // Recalculate TV assignments for games
+            const tvAssignments = assignTVs(schedule[slotKey].games);
+            schedule[slotKey].games.forEach((g, i) => g.tvs = tvAssignments[i]);
+
+            input.value = '';
+            renderModalContent();
+            renderGames();
+        }
+
+        function closeModal() {
+            document.getElementById('modalOverlay').classList.add('hidden');
+            currentEditSlot = null;
+        }
+
+        // ESPN API fetching
+        async function fetchESPN(url) {
+            try {
+                const proxyUrl = CORS_PROXY + encodeURIComponent(url);
+                console.log('Fetching:', url);
+                const response = await fetch(proxyUrl);
+                if (!response.ok) {
+                    console.error('Response not ok:', response.status, response.statusText, 'for', url);
+                    return { events: [] };
+                }
+                const data = await response.json();
+                return data;
+            } catch (error) {
+                console.error('Fetch error for', url, ':', error);
+                return { events: [] };
+            }
+        }
+        
+        // Fetch for a single date (some endpoints work better this way)
+        async function fetchESPNByDate(baseUrl, date) {
+            const dateStr = formatDateAPI(date);
+            return fetchESPN(`${baseUrl}?dates=${dateStr}`);
+        }
+
+        function getBroadcast(event) {
+            const competitions = event.competitions || [];
+            if (competitions.length > 0) {
+                const broadcasts = competitions[0].broadcasts || [];
+                if (broadcasts.length > 0) {
+                    return broadcasts.flatMap(b => b.names || []).join(', ');
+                }
+            }
+            return null;
+        }
+
+        function isPlayoffGame(event) {
+            const seasonType = event.season?.type || event.seasonType?.type;
+            return seasonType === 3 || seasonType === 4;
+        }
+
+        function isRankedGame(event) {
+            const competitions = event.competitions || [];
+            if (competitions.length > 0) {
+                return (competitions[0].competitors || []).some(c =>
+                    (c.curatedRank?.current && c.curatedRank.current <= 25) || (c.rank && c.rank <= 25)
+                );
+            }
+            return false;
+        }
+
+        function isMarchMadness(event) {
+            const name = (event.name || '').toLowerCase();
+            const seasonType = event.season?.type || 0;
+            return seasonType === 3 && (name.includes('ncaa') || name.includes('tournament'));
+        }
+
+        async function fetchAllGames() {
+            document.getElementById('loadingOverlay').classList.remove('hidden');
+
+            const endDate = new Date(currentWeekStart);
+            endDate.setDate(endDate.getDate() + 6);
+            const dateRange = `${formatDateAPI(currentWeekStart)}-${formatDateAPI(endDate)}`;
+
+            allGames = [];
+
+            const fetches = [
+                // NFL - we have all games
+                fetchESPN(`${ESPN_BASE}/football/nfl/scoreboard?dates=${dateRange}`).then(data => {
+                    (data.events || []).forEach(e => {
+                        const broadcast = getBroadcast(e);
+                        
+                        allGames.push({
+                            id: e.id,
+                            name: e.name,
+                            shortName: e.shortName,
+                            date: e.date,
+                            broadcast: broadcast,
+                            league: 'nfl',
+                            isPlayoff: isPlayoffGame(e),
+                            duration: 3.5
+                        });
+                    });
+                }),
+
+                // College Football - we have all SEC games
+                fetchESPN(`${ESPN_BASE}/football/college-football/scoreboard?dates=${dateRange}&groups=80`).then(data => {
+                    (data.events || []).forEach(e => {
+                        const nameLower = e.name.toLowerCase();
+                        const isPriority = PRIORITY_TEAMS.sec.some(t => nameLower.includes(t));
+                        if (isPriority || isRankedGame(e) || isPlayoffGame(e)) {
+                            const broadcast = getBroadcast(e);
+                            
+                            allGames.push({
+                                id: e.id,
+                                name: e.name,
+                                shortName: e.shortName,
+                                date: e.date,
+                                broadcast: broadcast,
+                                league: 'cfb',
+                                isPlayoff: isPlayoffGame(e),
+                                isRanked: isRankedGame(e),
+                                duration: 3.5
+                            });
+                        }
+                    });
+                }),
+
+                // College Basketball - fetch each day individually (more reliable)
+                ...[0,1,2,3,4,5,6].map(dayOffset => {
+                    const fetchDate = new Date(currentWeekStart);
+                    fetchDate.setDate(fetchDate.getDate() + dayOffset);
+                    const dateStr = formatDateAPI(fetchDate);
+                    return fetchESPN(`${ESPN_BASE}/basketball/mens-college-basketball/scoreboard?dates=${dateStr}`).then(data => {
+                        console.log(`CBB ${dateStr} returned:`, data.events?.length || 0, 'games');
+                        (data.events || []).forEach(e => {
+                            const nameLower = e.name.toLowerCase();
+                            const isPriority = PRIORITY_TEAMS.sec.some(t => nameLower.includes(t));
+                            const broadcast = getBroadcast(e);
+                            
+                            // Check if nationally televised (excluding ESPN+ which is streaming only)
+                            const broadcastLower = broadcast ? broadcast.toLowerCase() : '';
+                            const isESPNplus = broadcastLower.includes('espn+') || broadcastLower.includes('espn plus');
+                            const isNationalTV = broadcast && !isESPNplus && (
+                                broadcastLower.includes('espn') ||
+                                broadcastLower.includes('sec network') ||
+                                broadcastLower.includes('secn') ||
+                                broadcastLower.includes('cbs') ||
+                                broadcastLower.includes('fox') ||
+                                broadcastLower.includes('fs1') ||
+                                broadcastLower.includes('tnt') ||
+                                broadcastLower.includes('tbs') ||
+                                broadcastLower.includes('abc') ||
+                                broadcastLower.includes('nbc') ||
+                                broadcastLower.includes('btn') ||
+                                broadcastLower.includes('big ten')
+                            );
+                            
+                            if (isPriority || isNationalTV) {
+                                console.log('CBB match:', e.shortName, '| Broadcast:', broadcast);
+                            }
+                            
+                            if (isPriority || isMarchMadness(e) || isNationalTV) {
+                                allGames.push({
+                                    id: e.id,
+                                    name: e.name,
+                                    shortName: e.shortName,
+                                    date: e.date,
+                                    broadcast: broadcast,
+                                    league: 'ncaam',
+                                    isPlayoff: isPlayoffGame(e),
+                                    isRanked: isRankedGame(e),
+                                    isMarchMadness: isMarchMadness(e),
+                                    isPriority: isPriority,
+                                    isNationalTV: isNationalTV,
+                                    duration: 2.5
+                                });
+                            }
+                        });
+                    });
+                }),
+
+                // College Baseball - we have all SEC games
+                fetchESPN(`${ESPN_BASE}/baseball/college-baseball/scoreboard?dates=${dateRange}&groups=50`).then(data => {
+                    (data.events || []).forEach(e => {
+                        const nameLower = e.name.toLowerCase();
+                        if (PRIORITY_TEAMS.sec.some(t => nameLower.includes(t))) {
+                            const broadcast = getBroadcast(e);
+                            
+                            allGames.push({
+                                id: e.id,
+                                name: e.name,
+                                shortName: e.shortName,
+                                date: e.date,
+                                broadcast: broadcast,
+                                league: 'ncaab',
+                                isPlayoff: isPlayoffGame(e),
+                                duration: 3
+                            });
+                        }
+                    });
+                }),
+
+                // NBA - filter out League Pass only games
+                fetchESPN(`${ESPN_BASE}/basketball/nba/scoreboard?dates=${dateRange}`).then(data => {
+                    (data.events || []).forEach(e => {
+                        const broadcast = getBroadcast(e);
+                        // Skip subscription-only broadcasts
+                        if (isExcludedBroadcast(broadcast, 'nba')) return;
+                        
+                        allGames.push({
+                            id: e.id,
+                            name: e.name,
+                            shortName: e.shortName,
+                            date: e.date,
+                            broadcast: broadcast,
+                            league: 'nba',
+                            isPlayoff: isPlayoffGame(e),
+                            duration: 2.5
+                        });
+                    });
+                }),
+
+                // MLB - filter out MLB.TV only games
+                fetchESPN(`${ESPN_BASE}/baseball/mlb/scoreboard?dates=${dateRange}`).then(data => {
+                    (data.events || []).forEach(e => {
+                        const broadcast = getBroadcast(e);
+                        // Skip subscription-only broadcasts
+                        if (isExcludedBroadcast(broadcast, 'mlb')) return;
+                        
+                        allGames.push({
+                            id: e.id,
+                            name: e.name,
+                            shortName: e.shortName,
+                            date: e.date,
+                            broadcast: broadcast,
+                            league: 'mlb',
+                            isPlayoff: isPlayoffGame(e),
+                            duration: 3
+                        });
+                    });
+                }),
+
+                // PGA Golf
+                fetchESPN(`${ESPN_BASE}/golf/pga/scoreboard?dates=${dateRange}`).then(data => {
+                    (data.events || []).forEach(e => {
+                        allGames.push({
+                            id: e.id,
+                            name: e.name,
+                            shortName: e.shortName,
+                            date: e.date,
+                            broadcast: getBroadcast(e),
+                            league: 'pga',
+                            isPlayoff: false,
+                            duration: 6
+                        });
+                    });
+                })
+            ];
+
+            await Promise.all(fetches);
+
+            // Calculate tiers
+            allGames.forEach(game => {
+                game.tier = getGameTier(game);
+            });
+
+            // Sort by tier
+            allGames.sort((a, b) => a.tier - b.tier);
+
+            renderGames();
+            document.getElementById('loadingOverlay').classList.add('hidden');
+        }
+
+        // Initialize
+        document.getElementById('weekRange').textContent = formatDateRange(currentWeekStart);
+        renderTimeSlots();
+        renderCalendar();
+        fetchAllGames();
+
+        // Close modal on escape
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeModal();
+        });
+
+        // Close modal on overlay click
+        document.getElementById('modalOverlay').addEventListener('click', e => {
+            if (e.target.id === 'modalOverlay') closeModal();
+        });
+    </script>
+</body>
+</html>
