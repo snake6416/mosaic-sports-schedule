@@ -245,24 +245,17 @@
             text-overflow: ellipsis;
             margin-bottom: 2px;
             line-height: 1.2;
+            font-size: 0.85rem;
         }
 
         .game-block .game-info {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            font-size: 0.6rem;
+            font-size: 0.65rem;
             opacity: 0.9;
             flex-wrap: wrap;
             gap: 2px;
-        }
-
-        .game-block .tv-count {
-            background: rgba(0,0,0,0.3);
-            padding: 2px 5px;
-            border-radius: 3px;
-            font-weight: 600;
-            white-space: nowrap;
         }
 
         .game-block.saints {
@@ -495,30 +488,54 @@
             font-size: 0.75rem;
         }
 
-        /* Custom Event Input */
-        .custom-input-group {
+        /* Custom Game Form */
+        .custom-game-form {
             display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .form-row {
+            display: flex;
+            align-items: center;
             gap: 10px;
         }
 
-        .custom-input-group input {
+        .form-row label {
+            width: 80px;
+            font-size: 0.85rem;
+            color: #aaa;
+        }
+
+        .form-row input,
+        .form-row select {
             flex: 1;
-            padding: 10px;
+            padding: 8px 10px;
             border-radius: 6px;
             border: 1px solid #333;
             background: #0f0f23;
             color: #fff;
-            font-size: 0.9rem;
+            font-size: 0.85rem;
         }
 
-        .custom-input-group button {
+        .form-row select {
+            cursor: pointer;
+        }
+
+        .btn-add-game {
             background: #4ade80;
             color: #000;
             border: none;
-            padding: 10px 15px;
+            padding: 12px 20px;
             border-radius: 6px;
             cursor: pointer;
             font-weight: 600;
+            font-size: 0.9rem;
+            margin-top: 5px;
+        }
+
+        .btn-add-game:hover {
+            background: #22c55e;
         }
 
         /* Modal Footer */
@@ -722,7 +739,7 @@
             }
 
             .game-block .game-name {
-                font-size: 18px;
+                font-size: 20px;
                 font-weight: bold;
                 line-height: 1.1;
                 white-space: normal;
@@ -730,33 +747,21 @@
             }
 
             .game-block .game-info {
-                font-size: 14px;
+                font-size: 16px;
                 line-height: 1.1;
                 font-weight: 600;
                 margin-top: 2px;
-            }
-
-            .game-block .tv-count {
-                padding: 2px 6px;
-                font-size: 16px;
-                font-weight: bold;
             }
             
             /* Make split games readable */
             .game-block.split-2 .game-name,
             .game-block.split-3 .game-name {
-                font-size: 14px;
+                font-size: 16px;
             }
             
             .game-block.split-2 .game-info,
             .game-block.split-3 .game-info {
-                font-size: 11px;
-            }
-            
-            .game-block.split-2 .tv-count,
-            .game-block.split-3 .tv-count {
                 font-size: 12px;
-                padding: 1px 4px;
             }
 
             /* Sport colors for print */
@@ -843,24 +848,60 @@
             <p class="modal-subtitle" id="modalSubtitle">Sunday, Jan 12 • 12:00 PM</p>
 
             <div class="modal-section">
-                <h4>📺 Currently Showing (3 max)</h4>
+                <h4>📺 Currently Showing</h4>
                 <div class="current-games" id="currentGames">
                     <!-- Filled by JS -->
                 </div>
             </div>
 
             <div class="modal-section">
-                <h4>➕ Add from Other Games</h4>
+                <h4>➕ Add from Available Games</h4>
                 <div class="suggestions-list" id="suggestionsList">
                     <!-- Filled by JS -->
                 </div>
             </div>
 
             <div class="modal-section">
-                <h4>✏️ Add Custom Event</h4>
-                <div class="custom-input-group">
-                    <input type="text" id="customEventInput" placeholder="e.g. UFC Fight Night, Local Event">
-                    <button onclick="addCustomEvent()">Add</button>
+                <h4>✏️ Add Custom Game</h4>
+                <div class="custom-game-form">
+                    <div class="form-row">
+                        <label>Name:</label>
+                        <input type="text" id="customGameName" placeholder="e.g. UFC 300, LSU vs Alabama">
+                    </div>
+                    <div class="form-row">
+                        <label>Category:</label>
+                        <select id="customGameCategory">
+                            <option value="nfl">NFL</option>
+                            <option value="cfb">College Football</option>
+                            <option value="nba">NBA</option>
+                            <option value="ncaam">College Basketball</option>
+                            <option value="mlb">MLB</option>
+                            <option value="ncaab">College Baseball</option>
+                            <option value="pga">Golf</option>
+                            <option value="custom" selected>Custom/Other</option>
+                        </select>
+                    </div>
+                    <div class="form-row">
+                        <label>Start Time:</label>
+                        <select id="customGameStart">
+                            <!-- Filled by JS -->
+                        </select>
+                    </div>
+                    <div class="form-row">
+                        <label>Duration:</label>
+                        <select id="customGameDuration">
+                            <option value="1">1 hour</option>
+                            <option value="1.5">1.5 hours</option>
+                            <option value="2" selected>2 hours</option>
+                            <option value="2.5">2.5 hours</option>
+                            <option value="3">3 hours</option>
+                            <option value="3.5">3.5 hours</option>
+                            <option value="4">4 hours</option>
+                            <option value="5">5 hours</option>
+                            <option value="6">6 hours</option>
+                        </select>
+                    </div>
+                    <button class="btn-add-game" onclick="addCustomGame()">Add Game</button>
                 </div>
             </div>
 
@@ -990,6 +1031,8 @@
         let allGames = []; // All fetched games
         let schedule = {}; // Edited schedule: { 'YYYY-MM-DD-HH:mm': { games: [...], customEvents: [...] } }
         let currentEditSlot = null;
+        let hiddenGames = new Set(); // Game IDs that user has hidden/removed
+        let forcedSharedSlots = {}; // { 'dateStr': [{game1, game2}] } - games forced to share a time
 
         // Utility functions
         function getStartOfWeek(date) {
@@ -1348,54 +1391,161 @@
                     });
                 }
 
-                // Convert to array and sort by start time, then by tier
+                // Convert to array, filter hidden games, and sort by tier first (highest priority first), then by start time
                 const gamesArray = Array.from(dayGames.values())
-                    .sort((a, b) => a.startHour - b.startHour || a.tier - b.tier);
+                    .filter(g => !hiddenGames.has(g.id))
+                    .sort((a, b) => a.tier - b.tier || a.startHour - b.startHour);
+
+                // Build timeline with 2-hour blocks, only breaking for higher priority
+                // Allow up to 2 same-tier games that start at the same time to split
+                const finalGames = [];
+                let currentTime = START_HOUR;
+                let currentGames = []; // Can be 1 or 2 games
+                let currentGamesStart = null;
+                
+                while (currentTime < END_HOUR + 1) {
+                    // Find all games on right now
+                    const availableNow = gamesArray.filter(g => 
+                        g.startHour <= currentTime && g.endHour > currentTime
+                    );
+                    
+                    if (availableNow.length === 0) {
+                        // Nothing on - save current games if exist
+                        if (currentGames.length > 0 && currentTime - currentGamesStart >= 1) {
+                            currentGames.forEach((game, idx) => {
+                                finalGames.push({
+                                    ...game,
+                                    adjustedStart: currentGamesStart,
+                                    adjustedEnd: currentTime,
+                                    splitPosition: currentGames.length > 1 ? idx + 1 : 0,
+                                    splitTotal: currentGames.length
+                                });
+                            });
+                        }
+                        currentGames = [];
+                        currentGamesStart = null;
+                        
+                        // Jump to next game start
+                        const nextGame = gamesArray.find(g => g.startHour > currentTime);
+                        if (nextGame) {
+                            currentTime = nextGame.startHour;
+                        } else {
+                            break;
+                        }
+                        continue;
+                    }
+                    
+                    // Find the best tier available
+                    const bestTier = Math.min(...availableNow.map(g => g.tier));
+                    
+                    // Get all games at best tier
+                    const bestTierGames = availableNow.filter(g => g.tier === bestTier);
+                    
+                    // Check if any start at the same time - group by start hour
+                    const byStartTime = {};
+                    bestTierGames.forEach(g => {
+                        const key = g.startHour;
+                        if (!byStartTime[key]) byStartTime[key] = [];
+                        byStartTime[key].push(g);
+                    });
+                    
+                    // Find the group with earliest start time, take up to 2
+                    const startTimes = Object.keys(byStartTime).map(Number).sort((a, b) => a - b);
+                    let bestGames = [];
+                    for (const st of startTimes) {
+                        if (byStartTime[st].length >= 1) {
+                            bestGames = byStartTime[st].slice(0, 2); // Max 2 games
+                            break;
+                        }
+                    }
+                    
+                    if (bestGames.length === 0) {
+                        bestGames = [bestTierGames[0]];
+                    }
+                    
+                    // Should we switch?
+                    let shouldSwitch = false;
+                    
+                    if (currentGames.length === 0) {
+                        // No current game, start these
+                        shouldSwitch = true;
+                    } else if (bestTier < currentGames[0].tier) {
+                        // Higher priority game available - switch immediately
+                        shouldSwitch = true;
+                    } else {
+                        // Same or lower priority - check if current games ended or 2+ hours passed
+                        const anyCurrentStillOn = currentGames.some(g => 
+                            g.startHour <= currentTime && g.endHour > currentTime
+                        );
+                        const timeOnCurrent = currentTime - currentGamesStart;
+                        
+                        if (!anyCurrentStillOn || timeOnCurrent >= 2) {
+                            // Check if the new best games are different
+                            const currentIds = currentGames.map(g => g.id).sort().join(',');
+                            const newIds = bestGames.map(g => g.id).sort().join(',');
+                            if (currentIds !== newIds) {
+                                shouldSwitch = true;
+                            }
+                        }
+                    }
+                    
+                    if (shouldSwitch && currentGames.length > 0) {
+                        // Save the current games
+                        if (currentTime - currentGamesStart >= 1) {
+                            currentGames.forEach((game, idx) => {
+                                finalGames.push({
+                                    ...game,
+                                    adjustedStart: currentGamesStart,
+                                    adjustedEnd: currentTime,
+                                    splitPosition: currentGames.length > 1 ? idx + 1 : 0,
+                                    splitTotal: currentGames.length
+                                });
+                            });
+                        }
+                    }
+                    
+                    if (shouldSwitch) {
+                        currentGames = bestGames;
+                        currentGamesStart = currentTime;
+                    }
+                    
+                    // Move forward by 30 min increments
+                    currentTime += 0.5;
+                }
+                
+                // Don't forget the last games
+                if (currentGames.length > 0 && (END_HOUR + 1) - currentGamesStart >= 1) {
+                    const endTime = Math.min(
+                        Math.max(...currentGames.map(g => g.endHour)),
+                        END_HOUR + 1
+                    );
+                    currentGames.forEach((game, idx) => {
+                        finalGames.push({
+                            ...game,
+                            adjustedStart: currentGamesStart,
+                            adjustedEnd: endTime,
+                            splitPosition: currentGames.length > 1 ? idx + 1 : 0,
+                            splitTotal: currentGames.length
+                        });
+                    });
+                }
 
                 // Render each game
-                gamesArray.forEach(game => {
-                    // Only consider overlapping games that are in the SAME tier
-                    // (since different tiers don't share TVs)
-                    const overlapping = gamesArray.filter(other => 
-                        other.id !== game.id &&
-                        other.tier === game.tier && // Same tier only
-                        other.tvs > 0 && // Has TVs assigned
-                        other.startHour < game.endHour &&
-                        other.endHour > game.startHour
-                    );
+                finalGames.forEach(game => {
+                    const top = Math.max(0, (game.adjustedStart - START_HOUR) * SLOT_HEIGHT);
+                    const height = Math.max((game.adjustedEnd - game.adjustedStart) * SLOT_HEIGHT - 2, 30);
 
-                    const totalOverlapping = overlapping.length + 1;
-                    
-                    // Determine position among overlapping games
-                    const overlappingWithSelf = [game, ...overlapping].sort((a, b) => {
-                        // Sort by start time, then by name for consistency
-                        if (a.startHour !== b.startHour) return a.startHour - b.startHour;
-                        return (a.name || '').localeCompare(b.name || '');
-                    });
-                    const position = overlappingWithSelf.indexOf(game) + 1;
-
-                    // Calculate position - ensure top is never negative
-                    const top = Math.max(0, (game.startHour - START_HOUR) * SLOT_HEIGHT);
-                    const height = Math.max((game.endHour - game.startHour) * SLOT_HEIGHT - 2, 30);
-
-                    const sportClass = game.isCustom ? 'sport-custom' : getSportClass(game.league);
+                    const sportClass = getSportClass(game.league);
                     const isSaints = !game.isCustom && PRIORITY_TEAMS.nfl.some(t => (game.name || '').toLowerCase().includes(t));
                     const isBraves = !game.isCustom && PRIORITY_TEAMS.mlb.some(t => (game.name || '').toLowerCase().includes(t));
 
                     const block = document.createElement('div');
                     block.className = `game-block ${sportClass}`;
                     
-                    if (totalOverlapping > 1 && totalOverlapping <= 3) {
-                        block.classList.add(`split-${totalOverlapping}`);
-                        block.classList.add(`pos-${position}`);
-                    } else if (totalOverlapping > 3) {
-                        // More than 3 overlapping, just show first 3
-                        if (position <= 3) {
-                            block.classList.add('split-3');
-                            block.classList.add(`pos-${position}`);
-                        } else {
-                            return; // Don't render games beyond position 3
-                        }
+                    // Handle split positioning
+                    if (game.splitTotal === 2) {
+                        block.classList.add('split-2');
+                        block.classList.add(`pos-${game.splitPosition}`);
                     } else {
                         block.classList.add('full-width');
                     }
@@ -1412,13 +1562,12 @@
                         <div class="game-name">${game.isCustom ? game.name : (game.shortName || game.name)}${isSaints ? ' ⚜️' : ''}${isBraves ? ' 🪓' : ''}</div>
                         <div class="game-info">
                             <span>${timeStr}${game.broadcast ? ' • ' + game.broadcast : ''}</span>
-                            ${game.tvs ? `<span class="tv-count">${game.tvs} TVs</span>` : ''}
                         </div>
                     `;
 
                     block.onclick = (e) => {
                         e.stopPropagation();
-                        const clickHour = Math.floor(game.startHour);
+                        const clickHour = Math.floor(game.adjustedStart);
                         const slotKey = getSlotKey(date, clickHour, 0);
                         openEditModal(slotKey, date, clickHour, 0);
                     };
@@ -1436,9 +1585,25 @@
             const displayHour = hour > 12 ? hour - 12 : hour;
             const ampm = hour >= 12 ? 'PM' : 'AM';
 
-            document.getElementById('modalTitle').textContent = 'Edit Time Slot';
+            document.getElementById('modalTitle').textContent = 'Edit Schedule';
             document.getElementById('modalSubtitle').textContent =
-                `${dayNames[date.getDay()]}, ${date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} • ${displayHour}:00 ${ampm}`;
+                `${dayNames[date.getDay()]}, ${date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+
+            // Populate start time dropdown
+            const startSelect = document.getElementById('customGameStart');
+            startSelect.innerHTML = '';
+            for (let h = START_HOUR; h <= END_HOUR; h++) {
+                for (let m = 0; m < 60; m += 30) {
+                    const dispH = h > 12 ? h - 12 : (h === 0 ? 12 : h);
+                    const dispM = m === 0 ? '00' : '30';
+                    const ampmStr = h >= 12 ? 'PM' : 'AM';
+                    const opt = document.createElement('option');
+                    opt.value = h + (m / 60);
+                    opt.textContent = `${dispH}:${dispM} ${ampmStr}`;
+                    if (h === hour && m === minute) opt.selected = true;
+                    startSelect.appendChild(opt);
+                }
+            }
 
             renderModalContent();
             document.getElementById('modalOverlay').classList.remove('hidden');
@@ -1446,64 +1611,103 @@
 
         function renderModalContent() {
             const { slotKey, date, hour, minute } = currentEditSlot;
-            const scheduled = getScheduledGames(slotKey, date, hour, minute);
+            
+            // Get games that are on during this time slot (excluding hidden ones)
+            const allSlotGames = getGamesForSlot(slotKey, date, hour, minute);
+            const slotGames = allSlotGames.filter(g => !hiddenGames.has(g.id));
+            const hiddenSlotGames = allSlotGames.filter(g => hiddenGames.has(g.id));
 
-            // Ensure schedule entry exists
-            if (!schedule[slotKey]) {
-                schedule[slotKey] = {
-                    games: scheduled.games,
-                    customEvents: scheduled.customEvents
-                };
-            }
-
-            const currentData = schedule[slotKey];
-
-            // Render current games
+            // Render current games for this time slot
             const currentContainer = document.getElementById('currentGames');
-            const allCurrent = [
-                ...currentData.games.map(g => ({ ...g, isCustom: false })),
-                ...currentData.customEvents.map(e => ({ ...e, isCustom: true, tier: 'custom' }))
-            ];
-
-            if (allCurrent.length === 0) {
-                currentContainer.innerHTML = '<div style="color: #666; padding: 10px;">No games scheduled</div>';
+            
+            if (slotGames.length === 0) {
+                currentContainer.innerHTML = '<div style="color: #666; padding: 10px;">No games at this time</div>';
             } else {
-                currentContainer.innerHTML = allCurrent.map((item, idx) => `
+                currentContainer.innerHTML = slotGames.map(game => {
+                    const gameStart = new Date(game.date);
+                    const timeStr = formatTime(gameStart);
+                    const isCustom = game.isCustom;
+                    
+                    return `
                     <div class="current-game-item">
-                        <div class="tier-dot ${item.isCustom ? 'sport-custom' : getSportClass(item.league)}"></div>
+                        <div class="tier-dot ${getSportClass(game.league)}"></div>
                         <div class="game-details">
-                            <div class="name">${item.name}</div>
-                            <div class="meta">${item.isCustom ? 'Custom Event' : getSportName(item.league)}${item.broadcast ? ' • ' + item.broadcast : ''}</div>
+                            <div class="name">${game.shortName || game.name}</div>
+                            <div class="meta">${timeStr} • ${getSportName(game.league)} • ${game.duration || 3}hrs${game.broadcast ? ' • ' + game.broadcast : ''}</div>
                         </div>
-                        ${item.tvs ? `<div class="tv-badge">${item.tvs} TVs</div>` : ''}
-                        <button onclick="removeFromSlot(${idx}, ${item.isCustom})">Remove</button>
+                        ${isCustom ? 
+                            `<button onclick="removeCustomGame('${game.id}')" style="background:#dc2626;">Delete</button>` :
+                            `<button onclick="hideGame('${game.id}')" style="background:#dc2626;">Remove</button>`
+                        }
                     </div>
-                `).join('');
+                `}).join('');
             }
 
-            // Render suggestions (games not currently scheduled)
-            const allGamesForSlot = getGamesForSlot(slotKey, date, hour, minute);
-            const currentIds = new Set(currentData.games.map(g => g.id));
-            const suggestions = allGamesForSlot.filter(g => !currentIds.has(g.id));
-
+            // Render suggestions - only hidden games that are actually at this time slot
             const suggestionsContainer = document.getElementById('suggestionsList');
-            if (suggestions.length === 0) {
+            
+            if (hiddenSlotGames.length === 0) {
                 suggestionsContainer.innerHTML = '<div style="color: #666; padding: 10px;">No other games at this time</div>';
             } else {
-                suggestionsContainer.innerHTML = suggestions.map(game => `
+                suggestionsContainer.innerHTML = hiddenSlotGames.map(game => {
+                    const gameStart = new Date(game.date);
+                    const timeStr = formatTime(gameStart);
+                    
+                    return `
                     <div class="suggestion-item">
                         <div class="tier-dot ${getSportClass(game.league)}"></div>
                         <div class="suggestion-details">
                             <strong>${game.shortName || game.name}</strong><br>
-                            <span style="color: #888;">${getSportName(game.league)}${game.broadcast ? ' • ' + game.broadcast : ''}</span>
+                            <span style="color: #888;">${timeStr} • ${getSportName(game.league)}${game.broadcast ? ' • ' + game.broadcast : ''}</span>
                         </div>
-                        <button class="add-btn" onclick="addGameToSlot('${game.id}')" ${allCurrent.length >= MAX_GAMES_PER_SLOT ? 'disabled style="opacity:0.5"' : ''}>Add</button>
+                        <button class="add-btn" onclick="unhideGame('${game.id}')">Add</button>
                     </div>
-                `).join('');
+                `}).join('');
             }
 
-            // Clear custom input
-            document.getElementById('customEventInput').value = '';
+            // Clear custom game form
+            document.getElementById('customGameName').value = '';
+        }
+        
+        function hideGame(gameId) {
+            hiddenGames.add(gameId);
+            saveUserEdits();
+            renderModalContent();
+            renderGames();
+        }
+        
+        function unhideGame(gameId) {
+            hiddenGames.delete(gameId);
+            saveUserEdits();
+            renderModalContent();
+            renderGames();
+        }
+        
+        function saveUserEdits() {
+            const data = {
+                hiddenGames: Array.from(hiddenGames),
+                customGames: allGames.filter(g => g.isCustom)
+            };
+            localStorage.setItem('sportsBarUserEdits', JSON.stringify(data));
+        }
+        
+        function loadUserEdits() {
+            try {
+                const saved = localStorage.getItem('sportsBarUserEdits');
+                if (saved) {
+                    const data = JSON.parse(saved);
+                    hiddenGames = new Set(data.hiddenGames || []);
+                    
+                    // Load custom games
+                    (data.customGames || []).forEach(cg => {
+                        if (!allGames.find(g => g.id === cg.id)) {
+                            allGames.push(cg);
+                        }
+                    });
+                }
+            } catch (e) {
+                console.error('Error loading user edits:', e);
+            }
         }
 
         function removeFromSlot(index, isCustom) {
@@ -1548,33 +1752,57 @@
             renderGames();
         }
 
-        function addCustomEvent() {
-            const input = document.getElementById('customEventInput');
-            const name = input.value.trim();
-            if (!name) return;
-
-            const { slotKey } = currentEditSlot;
-            if (!schedule[slotKey]) {
-                schedule[slotKey] = { games: [], customEvents: [] };
-            }
-
-            const totalItems = schedule[slotKey].games.length + schedule[slotKey].customEvents.length;
-            if (totalItems >= MAX_GAMES_PER_SLOT) {
-                alert('Maximum 3 items per time slot');
+        function addCustomGame() {
+            const name = document.getElementById('customGameName').value.trim();
+            if (!name) {
+                alert('Please enter a game name');
                 return;
             }
 
-            schedule[slotKey].customEvents.push({
+            const category = document.getElementById('customGameCategory').value;
+            const startTime = parseFloat(document.getElementById('customGameStart').value);
+            const duration = parseFloat(document.getElementById('customGameDuration').value);
+
+            const { date } = currentEditSlot;
+            
+            // Create the custom game with proper date
+            const gameDate = new Date(date);
+            const startHour = Math.floor(startTime);
+            const startMin = (startTime % 1) * 60;
+            gameDate.setHours(startHour, startMin, 0, 0);
+            
+            const customGame = {
                 id: 'custom-' + Date.now(),
                 name: name,
-                tvs: Math.floor(NUM_TVS / (totalItems + 1))
-            });
-
-            // Recalculate TV assignments for games
-            const tvAssignments = assignTVs(schedule[slotKey].games);
-            schedule[slotKey].games.forEach((g, i) => g.tvs = tvAssignments[i]);
-
-            input.value = '';
+                shortName: name,
+                date: gameDate.toISOString(),
+                league: category,
+                tier: 1, // Always highest priority
+                duration: duration,
+                broadcast: '',
+                isCustom: true
+            };
+            
+            // Add to allGames array so it shows up in the schedule
+            allGames.push(customGame);
+            
+            // Store in localStorage for persistence
+            saveUserEdits();
+            
+            // Clear form
+            document.getElementById('customGameName').value = '';
+            
+            renderModalContent();
+            renderGames();
+        }
+        
+        function removeCustomGame(gameId) {
+            // Remove from allGames
+            const idx = allGames.findIndex(g => g.id === gameId);
+            if (idx >= 0) {
+                allGames.splice(idx, 1);
+            }
+            saveUserEdits();
             renderModalContent();
             renderGames();
         }
@@ -1830,8 +2058,16 @@
                 game.tier = getGameTier(game);
             });
 
+            // Add tier to each game
+            allGames.forEach(g => {
+                if (!g.tier) g.tier = getGameTier(g);
+            });
+            
             // Sort by tier
             allGames.sort((a, b) => a.tier - b.tier);
+            
+            // Load user edits from localStorage (hidden games, custom games, modified times)
+            loadUserEdits();
 
             renderGames();
             document.getElementById('loadingOverlay').classList.add('hidden');
