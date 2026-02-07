@@ -919,6 +919,7 @@
             <button onclick="changeWeek(1)">Next →</button>
         </div>
         <div class="header-actions">
+            <button class="btn-refresh" onclick="clearCacheAndRefresh()">🗑️ Clear Cache</button>
             <button class="btn-refresh" onclick="fetchAllGames()">🔄 Refresh</button>
             <button class="btn-print" onclick="window.print()">🖨️ Print</button>
         </div>
@@ -968,8 +969,13 @@
     </div>
 
     <script>
-        // Configuration
-        const CORS_PROXY = 'https://corsproxy.io/?';
+        // Configuration - Multiple CORS proxies for fallback
+        const CORS_PROXIES = [
+            { url: 'https://api.allorigins.win/raw?url=', encode: true },
+            { url: 'https://corsproxy.io/?', encode: true },
+            { url: 'https://api.codetabs.com/v1/proxy?quest=', encode: false }
+        ];
+        let currentProxyIndex = 0;
         const ESPN_BASE = 'https://site.api.espn.com/apis/site/v2/sports';
         const NUM_TVS = 8;
         const MAX_GAMES_PER_SLOT = 3;
@@ -1812,22 +1818,51 @@
             currentEditSlot = null;
         }
 
-        // ESPN API fetching
-        async function fetchESPN(url) {
-            try {
-                const proxyUrl = CORS_PROXY + encodeURIComponent(url);
-                console.log('Fetching:', url);
-                const response = await fetch(proxyUrl);
-                if (!response.ok) {
-                    console.error('Response not ok:', response.status, response.statusText, 'for', url);
-                    return { events: [] };
+        // ESPN API fetching with fallback proxies
+        async function fetchESPN(url, retryCount = 0) {
+            const maxRetries = CORS_PROXIES.length;
+            
+            for (let attempt = 0; attempt < maxRetries; attempt++) {
+                const proxyIndex = (currentProxyIndex + attempt) % CORS_PROXIES.length;
+                const proxy = CORS_PROXIES[proxyIndex];
+                const proxyUrl = proxy.url + (proxy.encode ? encodeURIComponent(url) : url);
+                
+                try {
+                    const response = await fetch(proxyUrl);
+                    if (response.ok) {
+                        const data = await response.json();
+                        // This proxy worked, prefer it for future requests
+                        currentProxyIndex = proxyIndex;
+                        return data;
+                    }
+                    console.warn(`Proxy ${proxyIndex} returned ${response.status} for ${url}, trying next...`);
+                } catch (error) {
+                    console.warn(`Proxy ${proxyIndex} failed for ${url}:`, error.message);
                 }
-                const data = await response.json();
-                return data;
-            } catch (error) {
-                console.error('Fetch error for', url, ':', error);
-                return { events: [] };
+                
+                // Small delay before trying next proxy
+                await new Promise(r => setTimeout(r, 100));
             }
+            
+            console.error('All proxies failed for:', url);
+            return { events: [] };
+        }
+        
+        // Add delay between batch requests to avoid rate limiting
+        function delay(ms) {
+            return new Promise(r => setTimeout(r, ms));
+        }
+        
+        // Clear cache and force refresh
+        function clearCacheAndRefresh() {
+            // Clear all sports bar cache entries
+            Object.keys(localStorage).forEach(key => {
+                if (key.startsWith('sportsBarCache_')) {
+                    localStorage.removeItem(key);
+                }
+            });
+            console.log('Cache cleared, refreshing...');
+            fetchAllGames();
         }
         
         // Fetch for a single date (some endpoints work better this way)
@@ -1874,197 +1909,175 @@
             const endDate = new Date(currentWeekStart);
             endDate.setDate(endDate.getDate() + 6);
             const dateRange = `${formatDateAPI(currentWeekStart)}-${formatDateAPI(endDate)}`;
+            const cacheKey = `sportsBarCache_${dateRange}`;
+            
+            // Check cache first (valid for 30 minutes)
+            try {
+                const cached = localStorage.getItem(cacheKey);
+                if (cached) {
+                    const { data, timestamp } = JSON.parse(cached);
+                    const age = Date.now() - timestamp;
+                    if (age < 30 * 60 * 1000) { // 30 minutes
+                        console.log('Using cached data, age:', Math.round(age / 60000), 'minutes');
+                        allGames = data;
+                        loadUserEdits();
+                        renderGames();
+                        document.getElementById('loadingOverlay').classList.add('hidden');
+                        return;
+                    }
+                }
+            } catch (e) {
+                console.warn('Cache read error:', e);
+            }
 
             allGames = [];
-
-            const fetches = [
-                // NFL - we have all games
-                fetchESPN(`${ESPN_BASE}/football/nfl/scoreboard?dates=${dateRange}`).then(data => {
-                    (data.events || []).forEach(e => {
-                        const broadcast = getBroadcast(e);
-                        
+            
+            // Helper to process events
+            const processNFL = (data) => {
+                (data.events || []).forEach(e => {
+                    allGames.push({
+                        id: e.id, name: e.name, shortName: e.shortName, date: e.date,
+                        broadcast: getBroadcast(e), league: 'nfl',
+                        isPlayoff: isPlayoffGame(e), duration: 3.5
+                    });
+                });
+            };
+            
+            const processCFB = (data) => {
+                (data.events || []).forEach(e => {
+                    const nameLower = e.name.toLowerCase();
+                    const isPriority = PRIORITY_TEAMS.sec.some(t => nameLower.includes(t));
+                    if (isPriority || isRankedGame(e) || isPlayoffGame(e)) {
                         allGames.push({
-                            id: e.id,
-                            name: e.name,
-                            shortName: e.shortName,
-                            date: e.date,
-                            broadcast: broadcast,
-                            league: 'nfl',
-                            isPlayoff: isPlayoffGame(e),
-                            duration: 3.5
+                            id: e.id, name: e.name, shortName: e.shortName, date: e.date,
+                            broadcast: getBroadcast(e), league: 'cfb',
+                            isPlayoff: isPlayoffGame(e), isRanked: isRankedGame(e), duration: 3.5
                         });
-                    });
-                }),
-
-                // College Football - we have all SEC games
-                fetchESPN(`${ESPN_BASE}/football/college-football/scoreboard?dates=${dateRange}&groups=80`).then(data => {
-                    (data.events || []).forEach(e => {
-                        const nameLower = e.name.toLowerCase();
-                        const isPriority = PRIORITY_TEAMS.sec.some(t => nameLower.includes(t));
-                        if (isPriority || isRankedGame(e) || isPlayoffGame(e)) {
-                            const broadcast = getBroadcast(e);
-                            
-                            allGames.push({
-                                id: e.id,
-                                name: e.name,
-                                shortName: e.shortName,
-                                date: e.date,
-                                broadcast: broadcast,
-                                league: 'cfb',
-                                isPlayoff: isPlayoffGame(e),
-                                isRanked: isRankedGame(e),
-                                duration: 3.5
-                            });
-                        }
-                    });
-                }),
-
-                // College Basketball - fetch each day individually (more reliable)
-                ...[0,1,2,3,4,5,6].map(dayOffset => {
-                    const fetchDate = new Date(currentWeekStart);
-                    fetchDate.setDate(fetchDate.getDate() + dayOffset);
-                    const dateStr = formatDateAPI(fetchDate);
-                    return fetchESPN(`${ESPN_BASE}/basketball/mens-college-basketball/scoreboard?dates=${dateStr}`).then(data => {
-                        console.log(`CBB ${dateStr} returned:`, data.events?.length || 0, 'games');
-                        (data.events || []).forEach(e => {
-                            const nameLower = e.name.toLowerCase();
-                            const isPriority = PRIORITY_TEAMS.sec.some(t => nameLower.includes(t));
-                            const broadcast = getBroadcast(e);
-                            
-                            // Check if nationally televised (excluding ESPN+ which is streaming only)
-                            const broadcastLower = broadcast ? broadcast.toLowerCase() : '';
-                            const isESPNplus = broadcastLower.includes('espn+') || broadcastLower.includes('espn plus');
-                            const isNationalTV = broadcast && !isESPNplus && (
-                                broadcastLower.includes('espn') ||
-                                broadcastLower.includes('sec network') ||
-                                broadcastLower.includes('secn') ||
-                                broadcastLower.includes('cbs') ||
-                                broadcastLower.includes('fox') ||
-                                broadcastLower.includes('fs1') ||
-                                broadcastLower.includes('tnt') ||
-                                broadcastLower.includes('tbs') ||
-                                broadcastLower.includes('abc') ||
-                                broadcastLower.includes('nbc') ||
-                                broadcastLower.includes('btn') ||
-                                broadcastLower.includes('big ten')
-                            );
-                            
-                            if (isPriority || isNationalTV) {
-                                console.log('CBB match:', e.shortName, '| Broadcast:', broadcast);
-                            }
-                            
-                            if (isPriority || isMarchMadness(e) || isNationalTV) {
-                                allGames.push({
-                                    id: e.id,
-                                    name: e.name,
-                                    shortName: e.shortName,
-                                    date: e.date,
-                                    broadcast: broadcast,
-                                    league: 'ncaam',
-                                    isPlayoff: isPlayoffGame(e),
-                                    isRanked: isRankedGame(e),
-                                    isMarchMadness: isMarchMadness(e),
-                                    isPriority: isPriority,
-                                    isNationalTV: isNationalTV,
-                                    duration: 2.5
-                                });
-                            }
-                        });
-                    });
-                }),
-
-                // College Baseball - we have all SEC games
-                fetchESPN(`${ESPN_BASE}/baseball/college-baseball/scoreboard?dates=${dateRange}&groups=50`).then(data => {
-                    (data.events || []).forEach(e => {
-                        const nameLower = e.name.toLowerCase();
-                        if (PRIORITY_TEAMS.sec.some(t => nameLower.includes(t))) {
-                            const broadcast = getBroadcast(e);
-                            
-                            allGames.push({
-                                id: e.id,
-                                name: e.name,
-                                shortName: e.shortName,
-                                date: e.date,
-                                broadcast: broadcast,
-                                league: 'ncaab',
-                                isPlayoff: isPlayoffGame(e),
-                                duration: 3
-                            });
-                        }
-                    });
-                }),
-
-                // NBA - filter out League Pass only games
-                fetchESPN(`${ESPN_BASE}/basketball/nba/scoreboard?dates=${dateRange}`).then(data => {
-                    (data.events || []).forEach(e => {
-                        const broadcast = getBroadcast(e);
-                        // Skip subscription-only broadcasts
-                        if (isExcludedBroadcast(broadcast, 'nba')) return;
-                        
+                    }
+                });
+            };
+            
+            const processCBB = (data) => {
+                (data.events || []).forEach(e => {
+                    const nameLower = e.name.toLowerCase();
+                    const isPriority = PRIORITY_TEAMS.sec.some(t => nameLower.includes(t));
+                    const broadcast = getBroadcast(e);
+                    const broadcastLower = broadcast ? broadcast.toLowerCase() : '';
+                    const isESPNplus = broadcastLower.includes('espn+') || broadcastLower.includes('espn plus');
+                    const isNationalTV = broadcast && !isESPNplus && (
+                        broadcastLower.includes('espn') || broadcastLower.includes('sec network') ||
+                        broadcastLower.includes('secn') || broadcastLower.includes('cbs') ||
+                        broadcastLower.includes('fox') || broadcastLower.includes('fs1') ||
+                        broadcastLower.includes('tnt') || broadcastLower.includes('tbs') ||
+                        broadcastLower.includes('abc') || broadcastLower.includes('nbc') ||
+                        broadcastLower.includes('btn') || broadcastLower.includes('big ten')
+                    );
+                    if (isPriority || isMarchMadness(e) || isNationalTV) {
                         allGames.push({
-                            id: e.id,
-                            name: e.name,
-                            shortName: e.shortName,
-                            date: e.date,
-                            broadcast: broadcast,
-                            league: 'nba',
-                            isPlayoff: isPlayoffGame(e),
-                            duration: 2.5
+                            id: e.id, name: e.name, shortName: e.shortName, date: e.date,
+                            broadcast: broadcast, league: 'ncaam',
+                            isPlayoff: isPlayoffGame(e), isRanked: isRankedGame(e),
+                            isMarchMadness: isMarchMadness(e), isPriority: isPriority,
+                            isNationalTV: isNationalTV, duration: 2.5
                         });
-                    });
-                }),
-
-                // MLB - filter out MLB.TV only games
-                fetchESPN(`${ESPN_BASE}/baseball/mlb/scoreboard?dates=${dateRange}`).then(data => {
-                    (data.events || []).forEach(e => {
-                        const broadcast = getBroadcast(e);
-                        // Skip subscription-only broadcasts
-                        if (isExcludedBroadcast(broadcast, 'mlb')) return;
-                        
+                    }
+                });
+            };
+            
+            const processCollegeBaseball = (data) => {
+                (data.events || []).forEach(e => {
+                    const nameLower = e.name.toLowerCase();
+                    if (PRIORITY_TEAMS.sec.some(t => nameLower.includes(t))) {
                         allGames.push({
-                            id: e.id,
-                            name: e.name,
-                            shortName: e.shortName,
-                            date: e.date,
-                            broadcast: broadcast,
-                            league: 'mlb',
-                            isPlayoff: isPlayoffGame(e),
-                            duration: 3
+                            id: e.id, name: e.name, shortName: e.shortName, date: e.date,
+                            broadcast: getBroadcast(e), league: 'ncaab',
+                            isPlayoff: isPlayoffGame(e), duration: 3
                         });
-                    });
-                }),
-
-                // PGA Golf
-                fetchESPN(`${ESPN_BASE}/golf/pga/scoreboard?dates=${dateRange}`).then(data => {
-                    (data.events || []).forEach(e => {
+                    }
+                });
+            };
+            
+            const processNBA = (data) => {
+                (data.events || []).forEach(e => {
+                    const broadcast = getBroadcast(e);
+                    if (!isExcludedBroadcast(broadcast, 'nba')) {
                         allGames.push({
-                            id: e.id,
-                            name: e.name,
-                            shortName: e.shortName,
-                            date: e.date,
-                            broadcast: getBroadcast(e),
-                            league: 'pga',
-                            isPlayoff: false,
-                            duration: 6
+                            id: e.id, name: e.name, shortName: e.shortName, date: e.date,
+                            broadcast: broadcast, league: 'nba',
+                            isPlayoff: isPlayoffGame(e), duration: 2.5
                         });
+                    }
+                });
+            };
+            
+            const processMLB = (data) => {
+                (data.events || []).forEach(e => {
+                    const broadcast = getBroadcast(e);
+                    if (!isExcludedBroadcast(broadcast, 'mlb')) {
+                        allGames.push({
+                            id: e.id, name: e.name, shortName: e.shortName, date: e.date,
+                            broadcast: broadcast, league: 'mlb',
+                            isPlayoff: isPlayoffGame(e), duration: 3
+                        });
+                    }
+                });
+            };
+            
+            const processGolf = (data) => {
+                (data.events || []).forEach(e => {
+                    allGames.push({
+                        id: e.id, name: e.name, shortName: e.shortName, date: e.date,
+                        broadcast: getBroadcast(e), league: 'pga',
+                        isPlayoff: false, duration: 6
                     });
-                })
+                });
+            };
+
+            // Sequential fetches with delays to avoid rate limiting
+            const requests = [
+                { url: `${ESPN_BASE}/football/nfl/scoreboard?dates=${dateRange}`, process: processNFL },
+                { url: `${ESPN_BASE}/football/college-football/scoreboard?dates=${dateRange}&groups=80`, process: processCFB },
+                { url: `${ESPN_BASE}/baseball/college-baseball/scoreboard?dates=${dateRange}&groups=50`, process: processCollegeBaseball },
+                { url: `${ESPN_BASE}/basketball/nba/scoreboard?dates=${dateRange}`, process: processNBA },
+                { url: `${ESPN_BASE}/baseball/mlb/scoreboard?dates=${dateRange}`, process: processMLB },
+                { url: `${ESPN_BASE}/golf/pga/scoreboard?dates=${dateRange}`, process: processGolf }
             ];
-
-            await Promise.all(fetches);
+            
+            // Add CBB requests for each day
+            for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
+                const fetchDate = new Date(currentWeekStart);
+                fetchDate.setDate(fetchDate.getDate() + dayOffset);
+                const dateStr = formatDateAPI(fetchDate);
+                requests.push({
+                    url: `${ESPN_BASE}/basketball/mens-college-basketball/scoreboard?dates=${dateStr}`,
+                    process: processCBB
+                });
+            }
+            
+            // Fetch sequentially with delay
+            for (const req of requests) {
+                const data = await fetchESPN(req.url);
+                req.process(data);
+                await delay(200); // 200ms delay between requests
+            }
 
             // Calculate tiers
             allGames.forEach(game => {
                 game.tier = getGameTier(game);
             });
-
-            // Add tier to each game
-            allGames.forEach(g => {
-                if (!g.tier) g.tier = getGameTier(g);
-            });
             
             // Sort by tier
             allGames.sort((a, b) => a.tier - b.tier);
+            
+            // Cache the results
+            try {
+                localStorage.setItem(cacheKey, JSON.stringify({
+                    data: allGames,
+                    timestamp: Date.now()
+                }));
+            } catch (e) {
+                console.warn('Cache write error:', e);
+            }
             
             // Load user edits from localStorage (hidden games, custom games, modified times)
             loadUserEdits();
